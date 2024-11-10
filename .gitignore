@@ -1,3 +1,11 @@
 sales-env
 unused_code.py
 .env
+company_details.db
+credentials_web.json
+credentials.json
+leads.txt
+sheet_url.txt
+token.json
+token.pickle
+urls.txt

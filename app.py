@@ -12,7 +12,8 @@ from Mail import *  # Add this import
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import JsonOutputParser
 import time
-
+from streamlit.components.v1 import declare_component
+from utils_perplexity import *
 
 
 
@@ -23,60 +24,64 @@ def key_terms():
     print(" previous leads inside fragement :" ,st.session_state.previous_leads)
     print("\n\n")
     st.write("\n\n\n\n")
+    
     st.write("Generated Key Words:")
     st.markdown(
-        """
-        <style>
-        .lead-item {
-            margin: 0;  
-            padding: 2px 0;  
-            font-size: 14px;  /* Adjust text size */
-        }
-        .stButton > button {
-            height: 20px;  /* Set a smaller height */
-            padding: 0;  /* Remove padding */
-            font-size: 10px;  /* Adjust font size for button */
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-    
+    """
+    <style>
+    .lead-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    .lead-button {
+        min-width: 30px;
+        height: 30px;
+        padding: 0;
+        font-size: 18px;
+        line-height: 1;
+        margin-right: 10px;
+    }
+    .lead-item {
+        font-size: 18px;
+        line-height: 30px;
+    }
+    /* Adjust the Streamlit button style specifically for lead buttons */
+    .lead-button-container .stButton > button {
+        height: 30px;
+        width: 30px;
+        font-size: 18px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
     # Loop through leads in session state with enumeration
     for idx, lead in enumerate(st.session_state.leads):
         col1, col2 = st.columns([0.1, 0.9])
         
         with col1:
-            if st.button("❌", key=f"remove_{idx}"):
-                # Store the lead to remove in session state instead of removing directly
-                #if 'lead_to_remove' not in st.session_state:
-                    #st.session_state.lead_to_remove = lead
-                    # Update leads file only once
-                    if lead in st.session_state.previous_leads:
-                        st.session_state.previous_leads.remove(lead)
-                        with open("leads.txt", 'w') as g:
-                            g.write("\n".join(list(st.session_state.previous_leads)))
-                            #g.write("\n".join(st.session_state.previous_leads))
-                    # Remove from current leads set
-                    #leads_list = list(st.session_state.leads)
-                    #leads_list.remove(lead)
-                    st.session_state.leads.discard(lead)
-                    st.rerun(scope="fragment") 
-                # Single rerun after all operations are complete
-                
+            if st.button("❌", key=f"remove_{idx}", help="Remove this lead"):
+                if lead in st.session_state.previous_leads:
+                    st.session_state.previous_leads.remove(lead)
+                    with open("leads.txt", 'w') as g:
+                        g.write("\n".join(list(st.session_state.previous_leads)))
+                st.session_state.leads.discard(lead)
+                st.rerun()
+        
         with col2:
             st.markdown(f"<div class='lead-item'>{lead}</div>", unsafe_allow_html=True)
-        #selected_leads = st.multiselect(
-            #"Select from generated leads:",
-            #options=st.session_state.leads
    
-    #)
+    
     st.write("\n\n")
     additional_leads_input = st.text_area(
         "Enter additional Key words (separated by commas,total Key words should be at most 10):"
     )
 
-   
     # Button to submit the final leads
     st.write("\n\n\n")
     if st.button("Submit Key Words"):
@@ -564,7 +569,7 @@ if page == "Configurations":
     
   
             # Submit button
-    if st.button("Submit Sheet URL",use_container_width=True) or st.session_state['url_key']:
+    if st.button("Submit Sheet URL") or st.session_state['url_key']:
         #st.write("Submit button pressed.")  # Debugging statement
         #if st.session_state[url_key]:
             #st.write("Google Sheet URL provided.")  # Debugging statement
@@ -625,14 +630,16 @@ elif page == "Customizations":
 
     st.title("Customizations")
     if st.session_state.preview:
-        with st.expander("Preview"):
+        
             #st.subheader("Preview")
             # st.dataframe(st.session_state.df)
-            if 'selected_row' not in st.session_state:
-                st.session_state.selected_row = None
-            cursor.execute("SELECT * FROM company_details")
-            rows = cursor.fetchall()
-            st.session_state.df = pd.DataFrame(rows, columns=['id', 'Company Name', 'Member Name', 'Member Email', 'Member Linkedin','Linkedin Profile', 'first_email', 'first_email_date', 'first_email_time', 'follow_up_email', 'follow_up_email_date', 'follow_up_email_time', 'second_follow_up_email', 'second_follow_up_email_date', 'second_follow_up_email_time'])
+        if 'selected_row' not in st.session_state:
+            st.session_state.selected_row = None
+        
+        
+        cursor.execute("SELECT * FROM company_details")
+        rows = cursor.fetchall()
+        st.session_state.df = pd.DataFrame(rows, columns=['id', 'Company Name', 'Member Name', 'Member Email', 'Member Linkedin','Linkedin Profile', 'first_email', 'first_email_date', 'first_email_time', 'follow_up_email', 'follow_up_email_date', 'follow_up_email_time', 'second_follow_up_email', 'second_follow_up_email_date', 'second_follow_up_email_time'])
             #st.session_state.df = pd.DataFrame(rows, columns=['id', 'Company Name', 'Member Name', 'Member Email', 'Member Linkedin', 'first_email', 'follow_up_email', 'second_follow_up_email'])
            
             
@@ -687,10 +694,12 @@ elif page == "Customizations":
                 with col2:
                     st.write(row['Member Name'])
         # Main area display (right side)
-        
+          
+# Main area display (right side)
+
 
         # Main area display (right side)
-        if st.session_state.selected_row is not None:
+    if st.session_state.selected_row is not None:
                 st.write(f"Details for {st.session_state.selected_row['Company Name']}:")
                 selected_df = st.session_state.df.loc[st.session_state.df['Company Name'] == st.session_state.selected_row['Company Name']]
                 st.dataframe(selected_df[['Company Name', 'Member Name', 'Member Email', 'Member Linkedin']])
@@ -700,7 +709,8 @@ elif page == "Customizations":
                             st.session_state.selected_row['Member Name'], 
                             st.session_state.selected_row['Member Email']))
                 fetched_row = cursor.fetchone()
-                
+           
+       
                 #print(row,type(row))
                 # Add these to your session state initializations at the start of your script
                 if 'generated_email' not in st.session_state:
@@ -727,23 +737,29 @@ elif page == "Customizations":
                         with st.spinner(f"Researching {st.session_state.selected_row['Company Name']} in the areas {st.session_state.leads}..."):
                             st.session_state.target_company_data = ""
                             for lead in st.session_state.leads:
-                                response = tavily_client.search(f"{st.session_state.selected_row['Company Name']} {lead}",search_depth="advanced",)
+                                #response = tavily_client.search(f"{st.session_state.selected_row['Company Name']} {lead}",search_depth="advanced",)
                                 #print("/n/n/n/n")
                                 #print("tavily response",type(response))
                                 #print(response)
-                                
-                                for d in response["results"]:
-                                 st.session_state.target_company_data += d["content"]
+                                prompt = f"Search about the {st.session_state.selected_row['Company Name']} cmapny in internet(new,blog etc) and check what all latest things they have undertaken\
+                                in {lead} Generate a summary in 200 words to be shown to a sales person. \
+                                The summary should be crisp and relevant"
+                                response = provide_online_checks(prompt)
+                                    
+                                #for d in response["results"]:
+                                st.session_state.target_company_data += response
                         
                         
                         #print(st.session_state.target_company_data)
-                        if(st.session_state.target_company_data!=''):
-                          st.text_area("Target Company Data", value=st.session_state.target_company_data, height=100, disabled=True)
+                        if st.session_state.target_company_data != '':
+                                with st.expander("Target Company Data"):
+                                    st.text_area("", value=st.session_state.target_company_data, height=300, disabled=True)
                         
                         with st.spinner(f"Researching {st.session_state.selected_row['Member Name']} in Linkedin..."):
                             time.sleep(2)
                         
-                        st.text_area("Company Member Details", value=st.session_state.selected_row['Linkedin Profile'], height=100, disabled=True)
+                        with st.expander("Company Member Details"):
+                            st.text_area("", value=st.session_state.selected_row['Linkedin Profile'], height=300, disabled=True)
                             
                         with st.spinner("Creating personalized email with all the information..."):
                             final_response = chain_1.invoke({
@@ -775,16 +791,17 @@ elif page == "Customizations":
                           #st.text_area("Follow up Email Sent", value=fetched_row[6], height=100, disabled=True)
                       
                     if fetched_row[6] is not None:
-
-                        st.text_area(f"First Email Sent on  {fetched_row[7]} at {fetched_row[8]}", value=fetched_row[6], height=150, disabled=True)
+                        with st.expander(f"First Email Sent on  {fetched_row[7]} at {fetched_row[8]}"):
+                          st.text_area("", value=fetched_row[6], height=300, disabled=True)
                         
                     if fetched_row[9] is not None:
                         print(fetched_row[9])
-                        st.text_area(f"Follow up Email Sent on {fetched_row[10]} at {fetched_row[11]}", value=fetched_row[9], height=150, disabled=True)
+                        with st.expander(f"Follow up Email Sent on {fetched_row[10]} at {fetched_row[11]}"):
+                            st.text_area("", value=fetched_row[9], height=300, disabled=True)
                             
                     if fetched_row[12] is not None:
-                       
-                        st.text_area(f"Second Follow up Email Sent on {fetched_row[13]} at {fetched_row[14]}", value=fetched_row[12], height=150, disabled=True)  
+                       with st.expander(f"Second Follow up Email Sent on {fetched_row[13]} at {fetched_row[14]}"):
+                         st.text_area("", value=fetched_row[12], height=300, disabled=True)  
                       # Adjust height as needed
 # ... existing code ... # Display the previous email
                     if(fetched_row[12] is None):
@@ -806,14 +823,19 @@ elif page == "Customizations":
                             
                             print("target comapny data")
                             
-                            if(st.session_state.target_company_data!=''):
-                             st.text_area("Target Company Data", value=st.session_state.target_company_data, height=100, disabled=True)
+                            if st.session_state.target_company_data != '':
+                                with st.expander("Target Company Data"):
+                                    st.text_area("", value=st.session_state.target_company_data, height=300, disabled=True)
+                            
+                             #st.text_area("Target Company Data", value=st.session_state.target_company_data, height=100, disabled=True)
                             
 
                             with st.spinner(f"Researching {st.session_state.selected_row['Member Name']} in Linkedin..."):
                                 time.sleep(2)
                             
-                            st.text_area("Comapany Member Details", value=st.session_state.selected_row['Linkedin Profile'], height=100, disabled=True)
+                            #st.text_area("Comapany Member Details", value=st.session_state.selected_row['Linkedin Profile'], height=100, disabled=True)
+                            with st.expander("Cmopany Member Details"):
+                                    st.text_area("", value=st.session_state.selected_row['Linkedin Profile'], height=300, disabled=True)
                             
                             with st.spinner("Creating personalized email with all the information..."):
                                 print("Chain_2 invoked")

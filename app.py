@@ -13,6 +13,106 @@ from pydantic import BaseModel, Field
 from langchain_core.output_parsers import JsonOutputParser
 import time
 
+
+
+
+@st.fragment()
+def key_terms():    
+    print("fragment ran")
+    print("leads inside fragement :" ,st.session_state.leads)
+    print(" previous leads inside fragement :" ,st.session_state.previous_leads)
+    print("\n\n")
+    st.write("\n\n\n\n")
+    st.write("Generated Key Words:")
+    st.markdown(
+        """
+        <style>
+        .lead-item {
+            margin: 0;  
+            padding: 2px 0;  
+            font-size: 14px;  /* Adjust text size */
+        }
+        .stButton > button {
+            height: 20px;  /* Set a smaller height */
+            padding: 0;  /* Remove padding */
+            font-size: 10px;  /* Adjust font size for button */
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # Loop through leads in session state with enumeration
+    for idx, lead in enumerate(st.session_state.leads):
+        col1, col2 = st.columns([0.1, 0.9])
+        
+        with col1:
+            if st.button("❌", key=f"remove_{idx}"):
+                # Store the lead to remove in session state instead of removing directly
+                #if 'lead_to_remove' not in st.session_state:
+                    #st.session_state.lead_to_remove = lead
+                    # Update leads file only once
+                    if lead in st.session_state.previous_leads:
+                        st.session_state.previous_leads.remove(lead)
+                        with open("leads.txt", 'w') as g:
+                            g.write("\n".join(list(st.session_state.previous_leads)))
+                            #g.write("\n".join(st.session_state.previous_leads))
+                    # Remove from current leads set
+                    #leads_list = list(st.session_state.leads)
+                    #leads_list.remove(lead)
+                    st.session_state.leads.discard(lead)
+                    st.rerun(scope="fragment") 
+                # Single rerun after all operations are complete
+                
+        with col2:
+            st.markdown(f"<div class='lead-item'>{lead}</div>", unsafe_allow_html=True)
+        #selected_leads = st.multiselect(
+            #"Select from generated leads:",
+            #options=st.session_state.leads
+   
+    #)
+    st.write("\n\n")
+    additional_leads_input = st.text_area(
+        "Enter additional Key words (separated by commas,total Key words should be at most 10):"
+    )
+
+   
+    # Button to submit the final leads
+    st.write("\n\n\n")
+    if st.button("Submit Key Words"):
+        # Combine selected leads and additional leads
+        print("\n\n\n")
+        print(" Sumbit buttom :", st.session_state.leads)
+        final_leads = list(st.session_state.leads) + [lead.strip() for lead in additional_leads_input.split(",") if lead.strip()]
+        #final_leads = st.session_state.leads + [lead.strip() for lead in additional_leads_input.split(",") if lead.strip()]
+
+        # Limit the number of final leads to 10
+        if len(final_leads) > 10:
+            st.warning("You can enter at most 10 leads. Only the first 10 will be considered.")
+            final_leads = final_leads[:10]
+        
+        #st.session_state.previous_leads=final_leads
+        
+        g=open("leads.txt","w")
+        for lead in final_leads:
+                g.write(lead+"\n")
+
+        # Update the leads variable with the final leads
+        #st.session_state.leads = final_leads
+        st.session_state.leads=set(final_leads)
+        st.session_state.previous_leads=set(final_leads)
+         
+        
+       
+        #st.write("Final Key words to search each lead comppany with:", st.session_state.leads)
+        st.rerun(scope="fragment")
+        print("Final leads are :", st.session_state.leads)
+    
+    
+    print("final leads inside fragement :" ,st.session_state.leads)
+    print(" final previous leads inside fragement :" ,st.session_state.previous_leads)
+    print("\n\n")
+
 # ... existing code ...
 sender_details = {"sender_name": "Shrey", "sender_email": "shreyas.joshi@genzoic.com"}
 # Function to initialize the SQLite database and create the table
@@ -70,9 +170,13 @@ def insert_email(company_name, member_name, member_email, email_type, email):
     cursor.execute(query, (email, company_name, member_name, member_email))
     conn.commit()
     conn.close()
+
+
 # ... existing code ...
 load_dotenv()
 st.set_page_config(layout="wide")
+
+
 # Create pages
 page = st.sidebar.selectbox("Choose a page", ["Configurations", "Customizations"])
 # Set up session state to store data between interactions
@@ -83,15 +187,25 @@ if 'target_company_data' not in st.session_state:
 if 'leads' not in st.session_state:
     st.session_state.leads = set()
 if 'previous_leads' not in st.session_state:
-     st.session_state.previous_leads = []
+     st.session_state.previous_leads = set()
 
 if os.path.exists("leads.txt"):
     g=open("leads.txt","r") 
-    previous_leads=g.read()
+    #previous_leads=g.read()
+    previous_leads=[line.strip() for line in g.readlines() if line.strip()]
+    print("leads inside file",previous_leads)
     if previous_leads:
+        print("inside file")
         #st.session_state.leads.extend(previous_leads.split(","))  
-        st.session_state.leads.update(previous_leads.split(","))  
-        st.session_state.previous_leads=previous_leads.split(",")
+        print("before",st.session_state.leads)
+        print("before : previous leads",st.session_state.previous_leads)
+        print("/n")
+        st.session_state.leads.update(previous_leads)  
+        st.session_state.previous_leads=set(previous_leads)
+        print("after",st.session_state.leads)
+        print("after : previous leads",st.session_state.previous_leads)
+        print("/n")
+
     print("leads",st.session_state.leads)
     print("previous leads",st.session_state.previous_leads)
     g.close()
@@ -166,7 +280,9 @@ prompt_2 = ChatPromptTemplate.from_messages(
 Source Company: Data describing the services or products offered by this company.
 Target Company: Data detailing this company's business and its potential relation or needs concerning the source company's offerings.
 You will also recieve previous mails sent to the target company.
-Your task is to carefully analyze both data sets as well as profile of representative of target company and craft a personalized sales email from the source company to the target company. The email should:
+Your task is to carefully analyze both data sets as well as profile of representative of target company  as well as the previous emails sent to the target comapny and craft a personalized follow up sales email from the source company to the target company.
+Carefully analyze the previous emails as well , and then generate a follow up email.
+ The email should:
 
 Be tailored and relevant—highlight only those services/products from the source company that align directly with the needs or business context of the target company.
 Avoid a generic pitch—instead, focus on the specific value and advantages the source company's offerings can provide to the target company.
@@ -182,7 +298,7 @@ Reciver Name:{reciever_name}, Sender Name : {sender_name}
 
 Below are the data sets for the source and target companies: Source Company: {source_company_data} Target Company: {target_company_data}
 Below is the data regarding target comapny representative : {member_details}
-Below are the emails. 
+Below are the previous emails. 
 {email}'''
 
                         ,
@@ -210,7 +326,38 @@ def get_text_from_page(url):
 
 if page == "Configurations":
     # Input for URLs
+    col1,col2=st.columns([0.8,0.2])
+    with col2:
+        if st.button("Clear Configurations"):
+            st.error("Do you confirm to clear the configurations?")
+            col1, col2 = st.columns([0.5, 0.5])
+            with col1:
+                if st.button("Confirm"):
+            
+                    print("Clear sheet values pressed")
+                    if os.path.exists("urls.txt"):
+                        f=open("urls.txt",'w')
+                        f.write('')
+                    if os.path.exists("leads.txt"):
+                        k=open('leads.txt','w')
+                        k.write('')
+                    if os.path.exists("sheet_url.txt"):
+                        h=open('sheet_url.txt','w')
+                        h.write('')
+                    f.close()
+                    k.close()
+                    h.close()
+                    st.session_state.leads=[]
+                    st.session_state.url_key=''
+                    st.success("Configurations cleared successfully.")
+                    st.rerun()
+            with col2:
+                if st.button("Cancel"):
+                    st.rerun()
     st.title("Configurations")
+
+    
+    
     present_urls=""
     if os.path.exists("urls.txt"):
         f=open("urls.txt","r")
@@ -277,82 +424,8 @@ if page == "Configurations":
    
 
 # Custom CSS to reduce vertical spacing, button size, and text size
-    st.write("\n\n\n\n")
-    st.write("Generated Search Terms:")
-    st.markdown(
-        """
-        <style>
-        .lead-item {
-            margin: 0;  
-            padding: 2px 0;  
-            font-size: 14px;  /* Adjust text size */
-        }
-        .stButton > button {
-            height: 20px;  /* Set a smaller height */
-            padding: 0;  /* Remove padding */
-            font-size: 10px;  /* Adjust font size for button */
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # Loop through leads in session state with enumeration
-    for idx, lead in enumerate(st.session_state.leads):
-        col1, col2 = st.columns([0.1, 0.9])
-        
-        with col1:
-            if st.button("❌", key=f"remove_{idx}"):  # Use index in the key instead of lead text
-                leads_list = list(st.session_state.leads)
-                leads_list.remove(lead)
-                st.session_state.leads = set(leads_list)
-                if(lead in st.session_state.previous_leads):
-                    st.session_state.previous_leads.remove(lead)
-                    g=open("leads.txt",'w')
-                    g.write("\n".join(st.session_state.previous_leads))
-                    g.close()
-                #st.session_state.leads.pop(idx)  # Use pop with index instead of remove
-                st.rerun()  # Rerun the app to refresh the display
-        
-        with col2:
-            st.markdown(f"<div class='lead-item'>{lead}</div>", unsafe_allow_html=True)
-        #selected_leads = st.multiselect(
-            #"Select from generated leads:",
-            #options=st.session_state.leads
-    #)
-    st.write("\n\n")
-    additional_leads_input = st.text_area(
-        "Enter additional key words (separated by commas,total leads should be at most 10):"
-    )
-
-
-    # Button to submit the final leads
-    st.write("\n\n\n")
-    if st.button("Submit Search Terms"):
-        # Combine selected leads and additional leads
-        final_leads = list(st.session_state.leads) + [lead.strip() for lead in additional_leads_input.split(",") if lead.strip()]
-        #final_leads = st.session_state.leads + [lead.strip() for lead in additional_leads_input.split(",") if lead.strip()]
-
-        # Limit the number of final leads to 10
-        if len(final_leads) > 10:
-            st.warning("You can enter at most 10 leads. Only the first 10 will be considered.")
-            final_leads = final_leads[:10]
-        
-        #st.session_state.previous_leads=final_leads
-        
-        g=open("leads.txt","w")
-        for lead in final_leads:
-                g.write(lead+"\n")
-
-        # Update the leads variable with the final leads
-        #st.session_state.leads = final_leads
-        st.session_state.leads=set(final_leads)
-         
-        
-       
-        #st.write("Final Key words to search each lead comppany with:", st.session_state.leads)
-        st.rerun()
-        print("Final leads are :", st.session_state.leads)
+    key_terms()
+   
 
 
     # Button to submit the final leads
@@ -466,26 +539,7 @@ if page == "Configurations":
     g.close()                                
 
 
-    if st.button("Clear Sheet Values"):
-        print("Clear sheet values pressed")
-        if os.path.exists("urls.txt"):
-            f=open("urls.txt",'w')
-            f.write('')
-        if os.path.exists("leads.txt"):
-            k=open('leads.txt','w')
-            k.write('')
-        if os.path.exists("sheet_url.txt"):
-            
-            h=open('sheet_url.txt','w')
-            print(h)
-            h.write('')
-        f.close()
-        k.close()
-        h.close()
-        st.session_state.leads=[]
-        st.session_state.url_key=''
-        
-        st.rerun()
+    
 
 elif page == "Customizations":
 
@@ -573,6 +627,9 @@ elif page == "Customizations":
                     st.session_state.generated_email = None
                 if 'show_send_buttons' not in st.session_state:
                     st.session_state.show_send_buttons = False
+                
+                #st.session_state.generated_email=''
+                #st.session_state.show_send_buttons=False
 
                 # Separate the email gener ation button
                 print("source_data", st.session_state.source_company_data)
@@ -587,18 +644,23 @@ elif page == "Customizations":
                  if st.button("Generate Personalized Email", key="generate_email"):
                     try:
                         
-                        with st.spinner(f"Researching {st.session_state.selected_row['Company Name']} in the areas..."):
+                        with st.spinner(f"Researching {st.session_state.selected_row['Company Name']} in the areas {st.session_state.leads}..."):
                             st.session_state.target_company_data = ""
                             for lead in st.session_state.leads:
-                                response = tavily_client.get_search_context(f"{st.session_state.selected_row['Company Name']} {lead}")
-                                st.session_state.target_company_data += response + " "
+                                response = tavily_client.search(f"{st.session_state.selected_row['Company Name']} {lead}",search_depth="advanced",)
+                                #print("/n/n/n/n")
+                                #print("tavily response",type(response))
+                                #print(response)
+                                
+                                for d in response["results"]:
+                                 st.session_state.target_company_data += d["content"]
                         
-                        print("target comapny data")
+                        
                         #print(st.session_state.target_company_data)
                         if(st.session_state.target_company_data!=''):
                           st.text_area("Target Company Data", value=st.session_state.target_company_data, height=100, disabled=True)
                         
-                        with st.spinner(f"Researching {st.session_state.selected_row['Member Name']} details..."):
+                        with st.spinner(f"Researching {st.session_state.selected_row['Member Name']} in Linkedin..."):
                             time.sleep(2)
                         
                         st.text_area("Company Member Details", value=st.session_state.selected_row['Linkedin Profile'], height=100, disabled=True)
@@ -616,6 +678,7 @@ elif page == "Customizations":
                        
                         st.session_state.generated_email = final_response
                         st.session_state.show_send_buttons = True
+                        print("generated personalized email",st.session_state.generated_email)
                         
                     except Exception as e:
                         st.error(f"An error occurred during email generation: {e}")
@@ -636,75 +699,116 @@ elif page == "Customizations":
                         st.text_area(f"First Email Sent on  {fetched_row[7]} at {fetched_row[8]}", value=fetched_row[6], height=150, disabled=True)
                         
                     if fetched_row[9] is not None:
-                    
-                        st.text_area(f"Follow up Email Sent on {fetched_row[10]} at {fetched_row[11]}", value={fetched_row[9]}, height=150, disabled=True)
+                        print(fetched_row[9])
+                        st.text_area(f"Follow up Email Sent on {fetched_row[10]} at {fetched_row[11]}", value=fetched_row[9], height=150, disabled=True)
                             
                     if fetched_row[12] is not None:
                        
-                        st.text_area(f"Second Follow up Email Sent on {fetched_row[13]} at {fetched_row[14]}", value={fetched_row[12]}, height=150, disabled=True)  
+                        st.text_area(f"Second Follow up Email Sent on {fetched_row[13]} at {fetched_row[14]}", value=fetched_row[12], height=150, disabled=True)  
                       # Adjust height as needed
 # ... existing code ... # Display the previous email
-                    if st.button("Generate Personalized Follow-Up Email", key="generate_follow_up_email"):
-                     try:
-                        with st.spinner(f"Researching {st.session_state.selected_row['Company Name']} in the areas..."):
-                            st.session_state.target_company_data = ""
-                            for lead in st.session_state.leads:
-                                response = tavily_client.get_search_context(f"{st.session_state.selected_row['Company Name']} {lead}")
-                                st.session_state.target_company_data += response + " "
-                        
-                        print("target comapny data")
-                        
-                        if(st.session_state.target_company_data!=''):
-                         st.text_area("Target Company Data", value=st.session_state.target_company_data, height=100, disabled=True)
-                        
+                    if(fetched_row[12] is None):
+                        print("Second folow up email not sent")
+                        if st.button("Generate Personalized Follow-Up Email", key="generate_follow_up_email"):
+                         try:
+                            with st.spinner(f"Researching {st.session_state.selected_row['Company Name']} in the {st.session_state.leads}..."):
+                                st.session_state.target_company_data = ""
+                                for lead in st.session_state.leads:
+                                    #response = tavily_client.get_search_context(f"{st.session_state.selected_row['Company Name']} {lead}")
+                                    #st.session_state.target_company_data += response + " "
+                                    response = tavily_client.search(f"{st.session_state.selected_row['Company Name']} {lead}",search_depth="advanced",)
+                                    #print("/n/n/n/n")
+                                    #print("tavily response",type(response))
+                                    #print(response)
+                                    
+                                    for d in response["results"]:
+                                     st.session_state.target_company_data += d["content"]
+                            
+                            print("target comapny data")
+                            
+                            if(st.session_state.target_company_data!=''):
+                             st.text_area("Target Company Data", value=st.session_state.target_company_data, height=100, disabled=True)
+                            
 
-                        with st.spinner(f"Researching {st.session_state.selected_row['Member Name']} details..."):
-                            time.sleep(2)
-                        
-                        st.text_area("Comapany Member Details", value=st.session_state.selected_row['Linkedin Profile'], height=100, disabled=True)
-                        
-                        with st.spinner("Creating personalized email with all the information..."):
-                            final_response = chain_2.invoke({
-                                "source_company_data": st.session_state.source_company_data,
-                                "target_company_data": st.session_state.target_company_data,
-                                "email":fetched_row[6]+'/n/n'+''if fetched_row[9] is None else fetched_row[9],
-                                "sender_name":"Genzoic",
-                                "reciever_name":st.session_state.selected_row['Member Name'],
-                                "member_details":st.session_state.selected_row['Linkedin Profile']
-                            })
-                        
-                        # Store the generated email in session state
-                        #print(type(final_response))
-                        #print(final_response)
-                        st.session_state.generated_email = final_response
-                        st.session_state.show_send_buttons = True
-                        #print(type(final_response.content),type(st.session_state.generated_email))
-                        
-                     except Exception as e:
-                        st.error(f"An error occurred during email generation: {e}")
-                        print(f"Error: {e}")
+                            with st.spinner(f"Researching {st.session_state.selected_row['Member Name']} in Linkedin..."):
+                                time.sleep(2)
+                            
+                            st.text_area("Comapany Member Details", value=st.session_state.selected_row['Linkedin Profile'], height=100, disabled=True)
+                            
+                            with st.spinner("Creating personalized email with all the information..."):
+                                print("Chain_2 invoked")
+                                final_response = chain_2.invoke({
+                                    "source_company_data": st.session_state.source_company_data,
+                                    "target_company_data": st.session_state.target_company_data,
+                                    "email":fetched_row[6]+'/n/n'+''if fetched_row[9] is None else fetched_row[9],
+                                    "sender_name":"Genzoic",
+                                    "reciever_name":st.session_state.selected_row['Member Name'],
+                                    "member_details":st.session_state.selected_row['Linkedin Profile']
+                                })
+                                
+                                print(final_response)
+                            
+                            # Store the generated email in session state
+                            #print(type(final_response))
+                            #print(final_response)
+                            st.session_state.generated_email = final_response
+                            st.session_state.show_send_buttons = True
+                            #print(type(final_response.content),type(st.session_state.generated_email))
+                            
+                         except Exception as e:
+                            st.error(f"An error occurred during email generation: {e}")
+                            print(f"Error: {e}")
+                    
+                    else:
+                      st.warning(f"No more follow-up emails allowed for {st.session_state.selected_row['Member Name']} of {st.session_state.selected_row['Company Name']}")
 
-
-                # Show the generated email if it exists
+                    # Show the generated email if it exists
+                    
                 if st.session_state.generated_email:
-                  st.write("Generated Email:")
-                  st.write(f"Subject :{st.session_state.generated_email.get('subject', '')}")
-                  st.write(st.session_state.generated_email['body'])
+                    st.write("Generated Email:")
+                    #st.text_area("Generated Email:",value=f"Subject :{st.session_state.generated_email.get('subject', '')}" + "\n" +f"{st.session_state.generated_email['body']}")
+                    #st.write(st.session_state.generated_email['body'])
+                    full_email = f"Subject: {st.session_state.generated_email.get('subject', '')}\n\n{st.session_state.generated_email.get('body', '')}"
+                    edited_email = st.text_area(
+                    "Edit Email:",
+                    value=full_email,
+                    height=300,
+                    key="edit_full_email"
+                )
+                
+                # Split the edited email back into subject and body
+                    if edited_email:
+                        lines = edited_email.split("\n", 1)  # Split only on the first newline
+                        if len(lines) > 1:
+                            edited_subject = lines[0].replace("Subject: ", "").strip()  # Remove "Subject: " prefix
+                            edited_body = lines[1].strip()
+                        else:
+                            edited_subject = lines[0].replace("Subject: ", "").strip()
+                            edited_body = ""
+                        
+                        # Store edited version back in session state
+                        st.session_state.generated_email = {
+                            'subject': edited_subject,
+                            'body': edited_body
+                        }
+
 
                 # Show send/cancel buttons if email was generated
                 if st.session_state.show_send_buttons:
+                    print("buttons present")
                     col1, col2 = st.columns(2)
                     with col1:
                         if st.button("Send Email", key="send_email"):
+                            print("Send email ")
                             try:
                                 current_time = time.localtime()
                                 current_date = time.strftime('%Y-%m-%d', current_time)
                                 current_time_str = time.strftime('%H:%M:%S', current_time)
                                 
                                 send_email('smtp.gmail.com', 587, sender_details["sender_email"], os.getenv('password'), 
-                                          sender_details["sender_email"], fetched_row[3], 
-                                          st.session_state.generated_email["subject"], 
-                                          st.session_state.generated_email["body"])
+                                        sender_details["sender_email"], fetched_row[3], 
+                                        st.session_state.generated_email["subject"], 
+                                        st.session_state.generated_email["body"])
                                 
                                 if fetched_row[6] is None:
                                     cursor.execute('''
@@ -759,5 +863,5 @@ elif page == "Customizations":
                             st.session_state.generated_email = None
                             st.session_state.show_send_buttons = False
                             st.rerun()
-                    
-                    
+                  
+                        

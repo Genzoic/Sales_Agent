@@ -176,6 +176,86 @@ def insert_email(company_name, member_name, member_email, email_type, email):
 load_dotenv()
 st.set_page_config(layout="wide")
 
+st.markdown("""
+    <style>
+    div[data-testid="stToolbar"] {
+        z-index: 999;
+    }
+    div[data-testid="stDecoration"] {
+        height: 0rem;
+    }
+    div[data-testid="stToolbar"] button {
+        position: fixed;
+        top: 0.5rem;
+        right: 3rem;
+        z-index: 1000;
+        border: none;
+        background-color: transparent;
+        color: inherit;
+        padding: 0;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+    <style>
+    .stButton > button {
+        padding: 0.5rem 1rem;
+        font-size: 16px;
+        line-height: 1.5;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+
+def switch_theme():
+    current_theme = st.session_state["themes"]["current_theme"]
+    new_theme = "dark" if current_theme == "light" else "light"
+    st.session_state["themes"]["current_theme"] = new_theme
+    
+    theme_options = st.session_state["themes"][new_theme]
+    for key, value in theme_options.items():
+        if key.startswith("theme"):
+            st._config.set_option(key, value)
+    
+    st.session_state["themes"]["refreshed"] = False
+    st.rerun()
+
+if "themes" not in st.session_state:
+    st.session_state.themes = {
+        "current_theme": "light",
+        "refreshed": True,
+        "light": {
+            "theme.base": "light",
+            "theme.primaryColor": "#5591f5",  # Light blue for light theme
+            "theme.backgroundColor": "white",
+            "theme.secondaryBackgroundColor": "#f0f2f6",
+            "theme.textColor": "#31333F",
+            "button_face": "🌞"
+        },
+        "dark": {
+            "theme.base": "dark",
+            "theme.primaryColor": "#c98bdb",  # Light purple for dark theme
+            "theme.backgroundColor": "#0E1117",
+            "theme.secondaryBackgroundColor": "#262730",
+            "theme.textColor": "#FAFAFA",
+            "button_face": "🌜"
+        }
+    }
+with st.sidebar:
+    btn_face = st.session_state.themes[st.session_state.themes["current_theme"]]["button_face"]
+    st.button(btn_face, on_click=switch_theme, key="theme-switch")
+
+
+if not st.session_state.themes["refreshed"]:
+    st.session_state.themes["refreshed"] = True
+    st.rerun()
+
 
 # Create pages
 page = st.sidebar.selectbox("Choose a page", ["Configurations", "Customizations"])
@@ -484,7 +564,7 @@ if page == "Configurations":
     
   
             # Submit button
-    if st.button("Submit Sheet URL") or st.session_state['url_key']:
+    if st.button("Submit Sheet URL",use_container_width=True) or st.session_state['url_key']:
         #st.write("Submit button pressed.")  # Debugging statement
         #if st.session_state[url_key]:
             #st.write("Google Sheet URL provided.")  # Debugging statement

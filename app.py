@@ -79,7 +79,7 @@ def key_terms():
     
     st.write("\n\n")
     additional_leads_input = st.text_area(
-        "Enter additional Key words (separated by commas,total Key words should be at most 10):"
+        "Enter additional Key words (separated by commas, total Key words should be at most 10):"
     )
 
     # Button to submit the final leads
@@ -480,29 +480,30 @@ if page == "Configurations":
             # Loop through each URL to extract text content
             for url in urls:
                 f.write(url+"\n")
-                st.subheader(f"Text content from {url}")
+                #st.subheader(f"Text content from {url}")
                 text = get_text_from_page(url)
                 if text:
-                    st.session_state.source_company_data += text + " "
-                    st.write(text)
+                    st.session_state.source_company_data += (f"Text content from {url}")+text + " "
+                    #st.write(text)
                 else:
-                    st.write("No text content found.")
-            
-            # Check if `source_company_data` has accumulated content
-            if st.session_state.source_company_data.strip():
-                st.write("Source Company Data Collected:")
-                st.write(st.session_state.source_company_data)
-            else:
-                st.warning("Source company data is empty.")
-
-            # Generate leads
-           
+                    st.write(f"No text content found from {url}")
             response = chain.invoke({"input": st.session_state.source_company_data})
             
             # Store leads in session state
 
             #st.session_state.leads.extend( [lead.strip() for lead in response.content.split(",") if lead.strip()])
             st.session_state.leads.update( [lead.strip() for lead in response.content.split(",") if lead.strip()])
+            
+            # Check if `source_company_data` has accumulated content
+    if st.session_state.source_company_data.strip():
+                with st.expander("Source Company Data:"):
+                  st.text_area("",value=st.session_state.source_company_data,height=300,disabled=True)
+    else:
+                st.warning("Source company data is empty.")
+
+            # Generate leads
+           
+           
             #st.write("Generated Leads:", st.session_state.leads)
     # Provide input box for final leads
    # st.write("Generated Leads:")
@@ -529,7 +530,7 @@ if page == "Configurations":
     # Button to generate email
     
     if 'sheet_url' not in st.session_state:
-        st.session_state.sheet_url = ''
+        st.session_state.sheet_url = None
     if 'spreadsheet_id' not in st.session_state:
         st.session_state.spreadsheet_id = ''
     if 'creds' not in st.session_state:
@@ -561,7 +562,7 @@ if page == "Configurations":
     st.session_state.records = []
     url_key = 'sheet_url'
     st.write("\n\n\n\n")
-    provided_sheet_url = st.text_input("Enter Google Sheet URL",key='sheet_url',value=present_sheet_url)
+    provided_sheet_url = st.text_input("Enter Google Sheet URL",value=present_sheet_url)
     st.session_state['url_key']=provided_sheet_url
     k=open("sheet_url.txt","w")
     k.write(st.session_state['url_key'])
@@ -649,54 +650,41 @@ elif page == "Customizations":
             st.write("## Company Details")
             
             # Custom CSS for table layout
-            st.markdown("""
-                <style>
-                .company-table {
-                    margin-top: 0;
-                    padding-top: 0;
-                }
-                .company-table button {
-                    background: none;
-                    border: none;
-                    padding: 2px 0;
-                    width: 100%;
-                    text-align: left;
-                }
-                .header-row {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    padding: 5px 0;
-                    border-bottom: 1px solid #ddd;
-                    font-weight: bold;
-                }
-                .data-row {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    padding: 2px 0;
-                }
-                </style>
-            """, unsafe_allow_html=True)
             
-            # Table header with grid layout
-            st.markdown('<div class="header-row"><div>Company Name</div><div>Member Name</div></div>', unsafe_allow_html=True)
             
-            # Create selectable rows with grid layout
-            for idx, row in st.session_state.df.iterrows():
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button(
-                        f"{row['Company Name']}", 
-                        key=f"row_{idx}",
-                        use_container_width=True
-                    ):
-                        st.session_state.selected_row = row
-                        st.rerun()
-                with col2:
-                    st.write(row['Member Name'])
-        # Main area display (right side)
-          
-# Main area display (right side)
 
+        # Main area display (right side)
+            st.markdown("""
+            <style>
+            .company-table {
+                margin-top: 0;
+                padding-top: 0;
+            }
+            .stRadio > label {
+                display: none;
+            }
+            .stRadio > div {
+                flex-direction: row;
+                align-items: center;
+            }
+            .stRadio > div > label {
+                margin-right: 10px;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        # Create radio buttons for row selection
+            selected_company = st.radio(
+            "Select a company",
+            options=st.session_state.df['Company Name'].unique(),
+            format_func=lambda x: f"{x} - {st.session_state.df[st.session_state.df['Company Name'] == x]['Member Name'].iloc[0]}",
+            key="company_selector"
+        )
+        
+        # Update selected_row based on radio button selection
+            if selected_company:
+             st.session_state.selected_row = st.session_state.df[st.session_state.df['Company Name'] == selected_company].iloc[0]
+            
 
         # Main area display (right side)
     if st.session_state.selected_row is not None:
@@ -710,8 +698,8 @@ elif page == "Customizations":
                             st.session_state.selected_row['Member Email']))
                 fetched_row = cursor.fetchone()
            
-       
-                #print(row,type(row))
+
+           #print(row,type(row))
                 # Add these to your session state initializations at the start of your script
                 if 'generated_email' not in st.session_state:
                     st.session_state.generated_email = None
@@ -872,7 +860,7 @@ elif page == "Customizations":
                     #st.write(st.session_state.generated_email['body'])
                     full_email = f"Subject: {st.session_state.generated_email.get('subject', '')}\n\n{st.session_state.generated_email.get('body', '')}"
                     edited_email = st.text_area(
-                    "Edit Email:",
+                    "",
                     value=full_email,
                     height=300,
                     key="edit_full_email"

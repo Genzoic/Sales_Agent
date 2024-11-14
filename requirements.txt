@@ -4,3 +4,4 @@ beautifulsoup4
 langchain-groq
 python-dotenv
 tavily-python
+openai

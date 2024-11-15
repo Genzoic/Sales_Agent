@@ -796,7 +796,7 @@ elif page == "Customizations":
                         print("Second folow up email not sent")
                         if st.button("Generate Personalized Follow-Up Email", key="generate_follow_up_email"):
                          try:
-                            with st.spinner(f"Researching {st.session_state.selected_row['Company Name']} in the {st.session_state.leads}..."):
+                            with st.spinner(f"Researching {st.session_state.selected_row['Company Name']} in the areas {st.session_state.leads}..."):
                                 st.session_state.target_company_data = ""
                                 for lead in st.session_state.leads:
                                     #response = tavily_client.get_search_context(f"{st.session_state.selected_row['Company Name']} {lead}")
